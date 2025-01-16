@@ -39,10 +39,14 @@ func main() {
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, os.Interrupt)
 
+	log.Println("Server started at", srv.Addr+":"+strconv.Itoa(EnvPort))
+
 	select {
 	case <-sigCh:
 		_ = srv.Close()
 	case err := <-errCh:
 		log.Fatal(err)
 	}
+
+	log.Println("codec-server stopped")
 }

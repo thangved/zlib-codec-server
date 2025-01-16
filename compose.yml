@@ -3,7 +3,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: thangved/zlib-codec-server
+    image: ghcr.io/thangved/zlib-codec-server:main
     container_name: zlib-codec-server
     restart: unless-stopped
     ports:
