@@ -2,11 +2,20 @@ package encryption
 
 import (
 	"context"
+	"fmt"
 
 	commonpb "go.temporal.io/api/common/v1"
 
 	"go.temporal.io/sdk/converter"
 	"go.temporal.io/sdk/workflow"
+)
+
+const (
+	// MetadataEncodingEncrypted is "binary/encrypted"
+	MetadataEncodingEncrypted = "binary/encrypted"
+
+	// MetadataEncryptionKeyID is "encryption-key-id"
+	MetadataEncryptionKeyID = "encryptionKeyID"
 )
 
 type DataConverter struct {
@@ -17,16 +26,18 @@ type DataConverter struct {
 }
 
 type DataConverterOptions struct {
-	KeyID    string
+	KeyID string
+	// Enable ZLib compression before encryption.
 	Compress bool
 }
 
+// Codec implements PayloadCodec using AES Crypt.
 type Codec struct {
-	KeyID                     string `default:"default"`
-	MetadataEncodingEncrypted string `default:"binary/encrypted"`
-	MetadataEncryptionKeyID   string `default:"default"`
+	KeyID string
 }
 
+// TODO: Implement workflow.ContextAware in CodecDataConverter
+// Note that you only need to implement this function if you need to vary the encryption KeyID per workflow.
 func (dc *DataConverter) WithWorkflowContext(ctx workflow.Context) converter.DataConverter {
 	if val, ok := ctx.Value(PropagateKey).(CryptContext); ok {
 		parent := dc.parent
@@ -43,6 +54,8 @@ func (dc *DataConverter) WithWorkflowContext(ctx workflow.Context) converter.Dat
 	return dc
 }
 
+// TODO: Implement workflow.ContextAware in EncodingDataConverter
+// Note that you only need to implement this function if you need to vary the encryption KeyID per workflow.
 func (dc *DataConverter) WithContext(ctx context.Context) converter.DataConverter {
 	if val, ok := ctx.Value(PropagateKey).(CryptContext); ok {
 		parent := dc.parent
@@ -59,14 +72,18 @@ func (dc *DataConverter) WithContext(ctx context.Context) converter.DataConverte
 	return dc
 }
 
-func (e *Codec) getKey() (key []byte) {
-	return []byte(e.KeyID)
+func (e *Codec) getKey(keyID string) (key []byte) {
+	return []byte(keyID)
 }
 
+// NewEncryptionDataConverter creates a new instance of EncryptionDataConverter wrapping a DataConverter
 func NewEncryptionDataConverter(dataConverter converter.DataConverter, options DataConverterOptions) *DataConverter {
 	codecs := []converter.PayloadCodec{
 		&Codec{KeyID: options.KeyID},
 	}
+	// Enable compression if requested.
+	// Note that this must be done before encryption to provide any value. Encrypted data should by design not compress very well.
+	// This means the compression codec must come after the encryption codec here as codecs are applied last -> first.
 	if options.Compress {
 		codecs = append(codecs, converter.NewZlibCodec(converter.ZlibCodecOptions{AlwaysEncode: true}))
 	}
@@ -87,7 +104,7 @@ func (e *Codec) Encode(payloads []*commonpb.Payload) ([]*commonpb.Payload, error
 			return payloads, err
 		}
 
-		key := e.getKey()
+		key := e.getKey(e.KeyID)
 
 		b, err := encrypt(origBytes, key)
 		if err != nil {
@@ -96,8 +113,8 @@ func (e *Codec) Encode(payloads []*commonpb.Payload) ([]*commonpb.Payload, error
 
 		result[i] = &commonpb.Payload{
 			Metadata: map[string][]byte{
-				converter.MetadataEncoding: []byte(e.MetadataEncodingEncrypted),
-				e.MetadataEncryptionKeyID:  []byte(e.KeyID),
+				converter.MetadataEncoding: []byte(MetadataEncodingEncrypted),
+				MetadataEncryptionKeyID:    []byte(e.KeyID),
 			},
 			Data: b,
 		}
@@ -111,12 +128,17 @@ func (e *Codec) Decode(payloads []*commonpb.Payload) ([]*commonpb.Payload, error
 	result := make([]*commonpb.Payload, len(payloads))
 	for i, p := range payloads {
 		// Only if it's encrypted
-		if string(p.Metadata[converter.MetadataEncoding]) != e.MetadataEncodingEncrypted {
+		if string(p.Metadata[converter.MetadataEncoding]) != MetadataEncodingEncrypted {
 			result[i] = p
 			continue
 		}
 
-		key := e.getKey()
+		keyID, ok := p.Metadata[MetadataEncryptionKeyID]
+		if !ok {
+			return payloads, fmt.Errorf("no encryption key id")
+		}
+
+		key := e.getKey(string(keyID))
 
 		b, err := decrypt(p.Data, key)
 		if err != nil {

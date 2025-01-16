@@ -11,5 +11,3 @@ services:
     environment:
       - PORT=8081
       - KEY_ID=1234567890
-      - METADATA_ENCODING_ENCRYPTED=binary/encrypted
-      - METADATA_ENCRYPTION_KEY_ID=1234567890

@@ -17,15 +17,11 @@ func main() {
 	EnvPort, _ := strconv.Atoi(os.Getenv("PORT"))
 
 	EnvKeyID := os.Getenv("KEY_ID")
-	EnvMetadataEncodingEncrypted := os.Getenv("METADATA_ENCODING_ENCRYPTED")
-	EnvMetadataEncryptionKeyID := os.Getenv("METADATA_ENCRYPTION_KEY_ID")
 
 	flag.Parse()
 
 	handler := converter.NewPayloadCodecHTTPHandler(&encryption.Codec{
-		KeyID:                     EnvKeyID,
-		MetadataEncodingEncrypted: EnvMetadataEncodingEncrypted,
-		MetadataEncryptionKeyID:   EnvMetadataEncryptionKeyID,
+		KeyID: EnvKeyID,
 	}, converter.NewZlibCodec(converter.ZlibCodecOptions{AlwaysEncode: true}))
 
 	srv := &http.Server{
