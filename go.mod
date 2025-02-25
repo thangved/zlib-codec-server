@@ -3,7 +3,7 @@ module thangved.com/zlib-codec-server
 go 1.23.4
 
 require (
-	go.temporal.io/api v1.44.1
+	go.temporal.io/api v1.45.0
 	go.temporal.io/sdk v1.32.1
 )
 
@@ -30,6 +30,6 @@ require (
 	google.golang.org/genproto/googleapis/api v0.0.0-20240827150818-7e3bb234dfed // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240827150818-7e3bb234dfed // indirect
 	google.golang.org/grpc v1.66.0 // indirect
-	google.golang.org/protobuf v1.34.2 // indirect
+	google.golang.org/protobuf v1.36.5 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
