@@ -3,7 +3,7 @@ module thangved.com/zlib-codec-server
 go 1.25.4
 
 require (
-	go.temporal.io/api v1.63.4
+	go.temporal.io/api v1.63.5
 	go.temporal.io/sdk v1.47.0
 )
 
